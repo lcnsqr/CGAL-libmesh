@@ -57,8 +57,12 @@ int main(int argc, char*argv[])
 
 	// Iterate over facets
 	C3t3::Facets_in_complex_iterator fcit = c3t3.facets_in_complex_begin();
+  int count = 0;
 	for (; fcit != c3t3.facets_in_complex_end(); fcit++) {
+    count++;
 	}
+  std::cout << "Count: " << count << std::endl;
+  std::cout << "number_of_facets: " << c3t3.number_of_facets() << std::endl;
 
   // Output
   std::ofstream file("out.mesh");

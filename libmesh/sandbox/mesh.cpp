@@ -8,10 +8,7 @@
 #include "libmesh/libmesh.h"
 #include "libmesh/mesh.h"
 #include "libmesh/mesh_generation.h"
-#include "libmesh/exodusII_io.h"
-#include "libmesh/gnuplot_io.h"
-#include "libmesh/linear_implicit_system.h"
-#include "libmesh/equation_systems.h"
+#include "libmesh/node.h"
 
 // Bring in everything from the libMesh namespace
 using namespace libMesh;
@@ -36,7 +33,7 @@ int main (int argc, char ** argv)
 
   // Create a mesh with user-defined dimension.
   // Number of elements
-  int ps = 5;
+  int ps = 1;
 
   // Create a mesh, with dimension to be overridden later, distributed
   // across the default MPI communicator.
@@ -58,10 +55,17 @@ int main (int argc, char ** argv)
                                      -1., 1.,
                                      -halfwidth, halfwidth,
                                      -halfheight, halfheight,
-                                     HEX27);
+                                     TET4);
 
   // Print information about the mesh to the screen.
   mesh.print_info();
+
+  // Iterate through nodes
+  for (auto & node : mesh.local_node_ptr_range())
+  {
+    node->print_info();
+  }
+
   mesh.write("teste.mesh");
 
   // All done.
