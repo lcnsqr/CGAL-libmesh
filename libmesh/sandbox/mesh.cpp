@@ -63,7 +63,8 @@ int main (int argc, char ** argv)
   // Iterate through nodes
   for (auto & node : mesh.local_node_ptr_range())
   {
-    node->print_info();
+    libMesh::out << "ID: " << node->id() << ": ";
+    libMesh::out << node->slice(0) << " " << node->slice(1) << " " << node->slice(2) << std::endl;
   }
 
   mesh.write("teste.mesh");
