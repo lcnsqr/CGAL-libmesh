@@ -11,6 +11,7 @@
 #include "libmesh/mesh_generation.h"
 #include "libmesh/node.h"
 #include "libmesh/mesh_tools.h"
+#include "libmesh/boundary_info.h"
 
 // Bring in everything from the libMesh namespace
 using namespace libMesh;
@@ -69,12 +70,22 @@ int main (int argc, char ** argv)
   }
 
   // Boundary nodes
+  /*
   libMesh::out << "Nós na fronteira:" << std::endl;
   std::unordered_set<dof_id_type> block_boundary_nodes;
   block_boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
   for (auto & id : block_boundary_nodes)
   {
     libMesh::out << "ID: " << id << std::endl;
+  }
+  */
+
+  const BoundaryInfo & binfo = mesh.get_boundary_info();
+  binfo.print_summary();
+
+  for (auto & id : binfo.get_boundary_ids ())
+  {
+    libMesh::out << "ID: " << id << ", nome: " << binfo.get_sideset_name(id) << std::endl;
   }
 
   mesh.write("teste.mesh");
