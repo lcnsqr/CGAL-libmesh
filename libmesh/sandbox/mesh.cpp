@@ -72,6 +72,7 @@ int main (int argc, char ** argv)
   }
 	*/
 
+  /*
   // Boundary nodes
   libMesh::out << "Nós na fronteira:" << std::endl;
   std::unordered_set<dof_id_type> block_boundary_nodes;
@@ -83,8 +84,8 @@ int main (int argc, char ** argv)
 		Point p = mesh.node_ref(id);
 		libMesh::out << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
   }
+	*/
 
-	/*
   const BoundaryInfo & boundary_info = mesh.get_boundary_info();
   boundary_info.print_summary();
 
@@ -104,19 +105,23 @@ int main (int argc, char ** argv)
       uint nid = nptr->id();
 
 			// Fills a user-provided std::vector with the boundary ids associated with Node nptr
-      std::vector<boundary_id_type> vec;
-      boundary_info.boundary_ids( nptr, vec );
-			if ( ! vec.size() ) continue;
+      //std::vector<boundary_id_type> vec;
+      //boundary_info.boundary_ids( nptr, vec );
+			//if ( ! vec.size() ) continue;
 
-			Point p = *nptr;
-			libMesh::out << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
+      /*
+      Point p = *nptr;
+      if ( elem->on_boundary() ){
+        libMesh::out << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
+      }
+      */
+
 			// Inserção na malha CGAL
 			//CPoint cpt = tf->transf( CPoint( p(0), p(1) ) );
 			//cdt.insert( cpt );
 
 		}
 	}
-	*/
 
   mesh.write("teste.mesh");
 
