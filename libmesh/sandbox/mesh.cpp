@@ -72,20 +72,19 @@ int main (int argc, char ** argv)
   }
 	*/
 
-  /*
   // Boundary nodes
   libMesh::out << "Nós na fronteira:" << std::endl;
   std::unordered_set<dof_id_type> block_boundary_nodes;
   block_boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
   for (auto & id : block_boundary_nodes)
   {
-    libMesh::out << "ID: " << id << std::endl;
+    libMesh::out << "ID: " << id << " -> ";
 
 		Point p = mesh.node_ref(id);
 		libMesh::out << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
   }
-	*/
 
+  /*
   const BoundaryInfo & boundary_info = mesh.get_boundary_info();
   boundary_info.print_summary();
 
@@ -93,14 +92,23 @@ int main (int argc, char ** argv)
   {
     libMesh::out << "ID: " << id << ", nome: " << boundary_info.get_sideset_name(id) << std::endl;
   }
+	*/
 
   // Element iterator
   MeshBase::const_element_iterator el = mesh.active_elements_begin(), end_el = mesh.active_elements_end();
   for ( ; el != end_el ; el++ )
 	{
 		const Elem * elem = *el;
+    if ( elem->on_boundary() ){
+      libMesh::out << "Elemento " << elem->id() << " Está na borda" << std::endl;
+    }
+    else {
+      continue;
+    }
+
     for (uint nnid=0; nnid < elem->n_nodes(); nnid++)
 		{
+      // Load element nodes
       const Node * nptr = elem->node_ptr(nnid);
       uint nid = nptr->id();
 
@@ -109,12 +117,9 @@ int main (int argc, char ** argv)
       //boundary_info.boundary_ids( nptr, vec );
 			//if ( ! vec.size() ) continue;
 
-      /*
+      // Access as Point
       Point p = *nptr;
-      if ( elem->on_boundary() ){
-        libMesh::out << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
-      }
-      */
+      libMesh::out << " ID: " << nid << ": " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
 
 			// Inserção na malha CGAL
 			//CPoint cpt = tf->transf( CPoint( p(0), p(1) ) );
