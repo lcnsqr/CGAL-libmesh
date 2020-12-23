@@ -62,28 +62,6 @@ int main (int argc, char ** argv)
   // Print information about the mesh to the screen.
   mesh.print_info();
 
-	/*
-  // Iterate through nodes
-  libMesh::out << "Todos os nós da malha:" << std::endl;
-  for (auto & node : mesh.local_node_ptr_range())
-  {
-    libMesh::out << "ID: " << node->id() << ": ";
-    libMesh::out << node->slice(0) << " " << node->slice(1) << " " << node->slice(2) << std::endl;
-  }
-	*/
-
-  // Boundary nodes
-  libMesh::out << "Nós na fronteira:" << std::endl;
-  std::unordered_set<dof_id_type> block_boundary_nodes;
-  block_boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
-  for (auto & id : block_boundary_nodes)
-  {
-    libMesh::out << "ID: " << id << " -> ";
-
-		Point p = mesh.node_ref(id);
-		libMesh::out << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
-  }
-
   /*
   const BoundaryInfo & boundary_info = mesh.get_boundary_info();
   boundary_info.print_summary();
@@ -94,38 +72,43 @@ int main (int argc, char ** argv)
   }
 	*/
 
-  // Element iterator
+  // Todos os nós que estão no contorno
+  std::unordered_set<dof_id_type> boundary_nodes;
+  boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
+
+  // Passar por todos os elementos ativos
   MeshBase::const_element_iterator el = mesh.active_elements_begin(), end_el = mesh.active_elements_end();
   for ( ; el != end_el ; el++ )
 	{
 		const Elem * elem = *el;
-    if ( elem->on_boundary() ){
-      libMesh::out << "Elemento " << elem->id() << " Está na borda" << std::endl;
-    }
-    else {
-      continue;
-    }
 
+    // Ignorar se não for um elemento de contorno
+    if ( ! elem->on_boundary() ) continue;
+
+    libMesh::out << "Face externa do elemento de contorno " << elem->id() << ":" << std::endl;
+
+    // Passar por todos os nós do elemento
     for (uint nnid=0; nnid < elem->n_nodes(); nnid++)
 		{
-      // Load element nodes
+      // Obter o ID do nó
       const Node * nptr = elem->node_ptr(nnid);
       uint nid = nptr->id();
 
-			// Fills a user-provided std::vector with the boundary ids associated with Node nptr
-      //std::vector<boundary_id_type> vec;
-      //boundary_info.boundary_ids( nptr, vec );
-			//if ( ! vec.size() ) continue;
+      // Verificar se nó está na face externa do elemento
+      if (boundary_nodes.find(nid) != boundary_nodes.end()){
 
-      // Access as Point
-      Point p = *nptr;
-      libMesh::out << " ID: " << nid << ": " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
+        // Coordenadas do nó de contorno
+        Point p = *nptr;
+        libMesh::out << "Nó de contorno (" << nid << "): " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
 
-			// Inserção na malha CGAL
-			//CPoint cpt = tf->transf( CPoint( p(0), p(1) ) );
-			//cdt.insert( cpt );
+        // Inserção na malha CGAL
+        //CPoint cpt = tf->transf( CPoint( p(0), p(1) ) );
+        //cdt.insert( cpt );
+
+      }
 
 		}
+
 	}
 
   mesh.write("teste.mesh");
