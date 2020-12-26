@@ -1,0 +1,2 @@
+As opções para lincar o objeto CGAL com o executável libmesh são obtidas do
+arquivo CGAL/CMakeFiles/teste.dir/link.txt e incluídas no Makefile
