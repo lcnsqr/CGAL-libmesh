@@ -15,6 +15,9 @@
 #include "libmesh/mesh_tools.h"
 #include "libmesh/boundary_info.h"
 
+// Formato ExodusII
+#include "libmesh/exodusII_io.h"
+
 #include "CGAL/convmesh.h"
 
 // Bring in everything from the libMesh namespace
@@ -108,8 +111,8 @@ int main (int argc, char ** argv)
     casco.push_back(Triangulo<Ponto<double>>(vertices[0],vertices[1],vertices[2]));
 	}
 
-  libMesh::out << "Salvando cube.mesh" << std::endl;
-  mesh.write("cube.mesh");
+  libMesh::out << "Salvando cube.e" << std::endl;
+  mesh.write("cube.e");
 
   libMesh::out << "Salvando cube_refined.mesh" << std::endl;
 	mesh_hull(casco);
