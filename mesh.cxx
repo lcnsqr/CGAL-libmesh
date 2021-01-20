@@ -18,7 +18,7 @@
 // Formato ExodusII
 #include "libmesh/exodusII_io.h"
 
-#include "CGAL/convmesh.h"
+#include "refine3d.hxx"
 
 // Bring in everything from the libMesh namespace
 using namespace libMesh;

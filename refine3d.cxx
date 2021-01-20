@@ -6,7 +6,7 @@
 #include <CGAL/make_mesh_3.h>
 
 #include <vector>
-#include "convmesh.h"
+#include "refine3d.hxx"
 
 // Domain
 typedef CGAL::Exact_predicates_inexact_constructions_kernel  Kernel;
