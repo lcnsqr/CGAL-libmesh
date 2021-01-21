@@ -1,49 +1,100 @@
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Polyhedral_mesh_domain_with_features_3.h>
-#include <CGAL/Mesh_triangulation_3.h>
-#include <CGAL/Mesh_complex_3_in_triangulation_3.h>
-#include <CGAL/Mesh_criteria_3.h>
-#include <CGAL/make_mesh_3.h>
-
-#include <vector>
 #include "refine3d.hxx"
-
-// Domain
-typedef CGAL::Exact_predicates_inexact_constructions_kernel  Kernel;
-typedef Kernel::Point_3                                      Point;
-typedef CGAL::Mesh_polyhedron_3<Kernel>::type                Polyhedron;
-typedef CGAL::Polyhedral_mesh_domain_with_features_3<Kernel> Mesh_domain;
-
-#ifdef CGAL_CONCURRENT_MESH_3
-typedef CGAL::Parallel_tag Concurrency_tag;
-#else
-typedef CGAL::Sequential_tag Concurrency_tag;
-#endif
-
-// Triangulation
-typedef CGAL::Mesh_triangulation_3<Mesh_domain,CGAL::Default,Concurrency_tag>::type Tr;
-typedef CGAL::Mesh_complex_3_in_triangulation_3<Tr,Mesh_domain::Corner_index,Mesh_domain::Curve_index> C3t3;
-
-// Criteria
-typedef CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 
 // To avoid verbose function and named parameters call
 using namespace CGAL::parameters;
 
-using namespace refine3d;
+// Bring in everything from the libMesh namespace
+using namespace libMesh;
 
-void refine3d::mesh_hull(std::vector<Triangulo<Ponto<double>>> casco)
+// Begin the main program.
+int main (int argc, char ** argv)
 {
+  // Initialize libMesh and any dependent libraries.
+  LibMeshInit init (argc, argv);
+
+  // Dimension
+  int dim = 3;
+
+  // Create a mesh with user-defined dimension.
+  // Number of elements
+  int ps = 1;
+
+  // Create a mesh, with dimension to be overridden later, distributed
+  // across the default MPI communicator.
+  Mesh mesh(init.comm());
+
+  // Use the MeshTools::Generation mesh generator to create a uniform
+  // grid on the square [-1,1]^D.  We instruct the mesh generator
+  // to build a mesh of TET4 elements in 3D.
+
+  Real halfwidth = 1.;
+  Real halfheight = 1.;
+
+  MeshTools::Generation::build_cube (mesh,
+                                     ps,
+                                     (dim>1) ? ps : 0,
+                                     (dim>2) ? ps : 0,
+                                     -1., 1.,
+                                     -halfwidth, halfwidth,
+                                     -halfheight, halfheight,
+                                     TET4);
+
+  // Print information about the mesh to the screen.
+  mesh.print_info();
+
+  // Todos os nós que estão no contorno
+  std::unordered_set<dof_id_type> boundary_nodes;
+  boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
+
+  // Poliedro CGAL
   Polyhedron polyhedron;
 
-	for(auto triangulo : casco) {
-		polyhedron.make_triangle(
-			Point(triangulo.vertices[0].pos[0],triangulo.vertices[0].pos[1],triangulo.vertices[0].pos[2]),
-			Point(triangulo.vertices[1].pos[0],triangulo.vertices[1].pos[1],triangulo.vertices[1].pos[2]),
-			Point(triangulo.vertices[2].pos[0],triangulo.vertices[2].pos[1],triangulo.vertices[2].pos[2])
-		);
+  // Passar por todos os elementos ativos da malha original
+  MeshBase::const_element_iterator el = mesh.active_elements_begin(), end_el = mesh.active_elements_end();
+  for ( ; el != end_el ; el++ )
+	{
+		const Elem * elem = *el;
+
+    // Ignorar se não for um elemento de contorno
+    if ( ! elem->on_boundary() ) continue;
+
+    libMesh::out << "Face externa do elemento de contorno " << elem->id() << ":" << std::endl;
+
+    // Os três vértices de uma face de contorno
+    // Kernel::Point_3 é o tipo ponto 3D da CGAL
+    std::array<Kernel::Point_3, 3> vertices;
+
+    // Passar por todos os nós do elemento
+    uint v = 0;
+    for (uint nnid=0; nnid < elem->n_nodes(); nnid++)
+		{
+      // Obter o ID do nó
+      const Node * nptr = elem->node_ptr(nnid);
+      uint nid = nptr->id();
+
+      // Verificar se nó está na face externa do elemento
+      if (boundary_nodes.find(nid) != boundary_nodes.end()){
+
+        // Coordenadas do nó de contorno
+        libMesh::Point p = *nptr;
+        libMesh::out << "Nó de contorno (" << nid << "): " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
+
+        // Atualizar vértice correspondente
+        vertices[v] = Kernel::Point_3(p(0), p(1), p(2));
+        v++;
+
+      }
+
+		}
+
+    // Adicionar triângulo de contorno ao poliedro CGAL
+		polyhedron.make_triangle(vertices[0], vertices[1], vertices[2]);
 	}
 
+  libMesh::out << "Salvando cube.e" << std::endl;
+  mesh.write("cube.e");
+
+  libMesh::out << "Salvando cube_refined.mesh" << std::endl;
   if (!CGAL::is_triangle_mesh(polyhedron)){
     std::cerr << "Input geometry is not triangulated." << std::endl;
   }
@@ -68,4 +119,6 @@ void refine3d::mesh_hull(std::vector<Triangulo<Ponto<double>>> casco)
 
   std::cout << "Sucesso." << std::endl;
 
+  // All done.
+  return 0;
 }

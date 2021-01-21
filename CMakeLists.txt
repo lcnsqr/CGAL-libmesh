@@ -1,4 +1,4 @@
-project( mesh )
+project( refine3d )
 
 
 cmake_minimum_required(VERSION 2.8.11)
@@ -30,7 +30,6 @@ endif()
 
 
 # --- libMesh commands
-# Have to do the search by hand ...
 # Check if there is a env. variable for the libMesh
 set(LIBMESH_DIR $ENV{LIBMESH_DIR})
 
@@ -61,10 +60,10 @@ message(STATUS "libMesh dir: ${LIBMESH_DIR}")
 # Creating entries for target: mesh
 # ############################
 
-add_executable( mesh  refine3d.cxx mesh.cxx )
+add_executable( refine3d refine3d.cxx )
 
-add_to_cached_list( CGAL_LIBRARY_TARGETS mesh )
+add_to_cached_list( CGAL_LIBRARY_TARGETS refine3d )
 
 # Link the executable to CGAL and third-party libraries
-target_link_libraries(mesh   ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} )
+target_link_libraries(refine3d ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} )
 
