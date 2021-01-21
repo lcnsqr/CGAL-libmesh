@@ -23,8 +23,6 @@
 // Bring in everything from the libMesh namespace
 using namespace libMesh;
 
-using namespace convmesh;
-
 // Begin the main program.
 int main (int argc, char ** argv)
 {
@@ -66,7 +64,7 @@ int main (int argc, char ** argv)
   boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
 
   // Vetor com os triângulos do casco
-	std::vector<Triangulo<Ponto<double>>> casco;
+	std::vector<refine3d::Triangulo<refine3d::Ponto<double>>> casco;
 
   // Passar por todos os elementos ativos
   MeshBase::const_element_iterator el = mesh.active_elements_begin(), end_el = mesh.active_elements_end();
@@ -80,7 +78,7 @@ int main (int argc, char ** argv)
     libMesh::out << "Face externa do elemento de contorno " << elem->id() << ":" << std::endl;
 
     // Os três vértices de um elemento de contorno
-    std::array<Ponto<double>, 3> vertices;
+    std::array<refine3d::Ponto<double>, 3> vertices;
 
     // Passar por todos os nós do elemento
     uint v = 0;
@@ -108,14 +106,14 @@ int main (int argc, char ** argv)
 		}
 
     // Adicionar triângulo de contorno ao vetor do casco
-    casco.push_back(Triangulo<Ponto<double>>(vertices[0],vertices[1],vertices[2]));
+    casco.push_back(refine3d::Triangulo<refine3d::Ponto<double>>(vertices[0],vertices[1],vertices[2]));
 	}
 
   libMesh::out << "Salvando cube.e" << std::endl;
   mesh.write("cube.e");
 
   libMesh::out << "Salvando cube_refined.mesh" << std::endl;
-	mesh_hull(casco);
+	refine3d::mesh_hull(casco);
 
   // All done.
   return 0;

@@ -2,7 +2,7 @@
 #include <array>
 #include <vector>
 
-namespace convmesh {
+namespace refine3d {
 
   template <typename T> class Ponto {
 

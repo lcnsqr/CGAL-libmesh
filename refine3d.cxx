@@ -30,9 +30,9 @@ typedef CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 // To avoid verbose function and named parameters call
 using namespace CGAL::parameters;
 
-using namespace convmesh;
+using namespace refine3d;
 
-void convmesh::mesh_hull(std::vector<Triangulo<Ponto<double>>> casco)
+void refine3d::mesh_hull(std::vector<Triangulo<Ponto<double>>> casco)
 {
   Polyhedron polyhedron;
 
