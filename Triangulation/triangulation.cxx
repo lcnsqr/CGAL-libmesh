@@ -100,6 +100,9 @@ int main(int argc, char **argv) {
 
 	}
 
+  // Salvar malha original
+  mesh.write("antes.e");
+
 	// Limpar malha original
 	mesh.clear();
 	mesh.set_mesh_dimension(dim);
@@ -108,39 +111,41 @@ int main(int argc, char **argv) {
   // Número de células na malha nova
   std::cout << "T.number_of_finite_cells() = " << T.number_of_finite_cells() << std::endl;
 
+  // Mapa para marcar os nós que já foram inseridos.
+  int node_map[15];
+  for (int n = 0; n < 15; n++){
+    node_map[n] = 0;
+  }
+
+  // Ponteiros para os nós inseridos na nova malha
+  libMesh::Node * nodes[15];
+
 	unsigned int elem_id = 0;
 
   // Percorrer todas as células da malha nova
   for (Delaunay::Finite_cells_iterator cit = T.finite_cells_begin(); cit != T.finite_cells_end(); cit++)
   {
+    /*
     std::cout << "Cell" << std::endl;
     std::cout << cit->vertex(0)->info() << " -> " << cit->vertex(0)->point() << std::endl;
     std::cout << cit->vertex(1)->info() << " -> " << cit->vertex(1)->point() << std::endl;
     std::cout << cit->vertex(2)->info() << " -> " << cit->vertex(2)->point() << std::endl;
     std::cout << cit->vertex(3)->info() << " -> " << cit->vertex(3)->point() << std::endl;
-
-		/*
-		Elementos que compartilham nós fazem com que 
-		os nós compartilhados sejam duplicados na malha
-		*/
-
-    /*
-    Usar um bitmap para marcar os nós que já foram inseridos.
-    Usar um vetor com os Node* que foram inseridos.
-    Colocar no elemento os nós que estão no vetor.
     */
 
-
-    /*
-		// Novo elemento na malha nova
+		// Novo elemento na malha libmesh nova
 		libMesh::Elem * elem = new libMesh::Tet4;
 		elem->set_id(elem_id++);
 
-		// Percorre os 4 pontos do tetraedro e cria os nós correspondentes
+    /*
 		std::vector< std::pair<libMesh::Node *, unsigned> > nodes;
+    */
+
+		// Percorre os 4 pontos do tetraedro e insere os nós correspondentes
 		for (int n = 0; n < 4; n++)
 		{
 
+      /*
 			nodes.push_back( std::make_pair(
 
 				// Coordenadas
@@ -150,19 +155,31 @@ int main(int argc, char **argv) {
 					cit->vertex(n)->point().z()
 				)),
 
-				// Informação de contorno
 				cit->vertex(n)->info())
 
 			);
+      */
+
+      // Usando o ID do ponto, verificar se ainda 
+      // não foi inserido na malha libmesh nova
+      if ( ! node_map[cit->vertex(n)->info()] )
+      {
+        // Ausente na malha nova, inserir nó
+				nodes[cit->vertex(n)->info()] = mesh.add_point(libMesh::Point(
+					cit->vertex(n)->point().x(), 
+					cit->vertex(n)->point().y(), 
+					cit->vertex(n)->point().z()
+				));
+        // Marcar como inserido no mapa
+        node_map[cit->vertex(n)->info()] = 1;
+      }
 
 			// Definir n-ésimo nó do elemento
-			elem->set_node(n) = nodes[n].first;
+			elem->set_node(n) = nodes[cit->vertex(n)->info()];
 		}
 
 		// Incluir elemento na malha nova
 		elem = mesh.add_elem(elem);
-    */
-
 
 
 
@@ -181,6 +198,10 @@ int main(int argc, char **argv) {
 
 	// Exibir informações da malha reconstruída
   mesh.print_info();
+
+  // Salvar malha gerada
+  mesh.write("depois.e");
+
 
   return 0;
 }
