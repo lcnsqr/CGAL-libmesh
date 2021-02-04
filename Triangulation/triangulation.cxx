@@ -103,22 +103,24 @@ int main(int argc, char **argv) {
   // Salvar malha original
   mesh.write("antes.e");
 
-	// Limpar malha original
-	mesh.clear();
-	mesh.set_mesh_dimension(dim);
-	mesh.set_spatial_dimension(dim);
-
   // Número de células na malha nova
   std::cout << "T.number_of_finite_cells() = " << T.number_of_finite_cells() << std::endl;
 
   // Mapa para marcar os nós que já foram inseridos.
-  int node_map[15];
-  for (int n = 0; n < 15; n++){
-    node_map[n] = 0;
-  }
+  size_t node_map_size = (size_t)ceil((double)mesh.n_nodes() / 8.0);
+  char * node_map = (char*)malloc(node_map_size);
+  memset(node_map, 0, node_map_size);
+
+  size_t node_map_byte;
+  uint8_t node_map_bit;
 
   // Ponteiros para os nós inseridos na nova malha
-  libMesh::Node * nodes[15];
+  libMesh::Node ** nodes = (libMesh::Node **)malloc(mesh.n_nodes() * sizeof(libMesh::Node *));
+
+	// Limpar malha original
+	mesh.clear();
+	mesh.set_mesh_dimension(dim);
+	mesh.set_spatial_dimension(dim);
 
 	unsigned int elem_id = 0;
 
@@ -145,24 +147,14 @@ int main(int argc, char **argv) {
 		for (int n = 0; n < 4; n++)
 		{
 
-      /*
-			nodes.push_back( std::make_pair(
-
-				// Coordenadas
-				mesh.add_point(libMesh::Point(
-					cit->vertex(n)->point().x(), 
-					cit->vertex(n)->point().y(), 
-					cit->vertex(n)->point().z()
-				)),
-
-				cit->vertex(n)->info())
-
-			);
-      */
-
       // Usando o ID do ponto, verificar se ainda 
       // não foi inserido na malha libmesh nova
-      if ( ! node_map[cit->vertex(n)->info()] )
+
+      node_map_byte = (size_t)cit->vertex(n)->info() / 8;
+      node_map_bit = (uint8_t)cit->vertex(n)->info() % 8;
+
+      if ( ! (node_map[node_map_byte] & (0x01 << node_map_bit)) )
+      //if ( ! node_map[cit->vertex(n)->info()] )
       {
         // Ausente na malha nova, inserir nó
 				nodes[cit->vertex(n)->info()] = mesh.add_point(libMesh::Point(
@@ -171,7 +163,8 @@ int main(int argc, char **argv) {
 					cit->vertex(n)->point().z()
 				));
         // Marcar como inserido no mapa
-        node_map[cit->vertex(n)->info()] = 1;
+        node_map[node_map_byte] = node_map[node_map_byte] | (0x01 << node_map_bit);
+        //node_map[cit->vertex(n)->info()] = 1;
       }
 
 			// Definir n-ésimo nó do elemento
@@ -195,6 +188,9 @@ int main(int argc, char **argv) {
 		*/
 
   }
+
+  free(node_map);
+  free(nodes);
 
 	// Exibir informações da malha reconstruída
   mesh.print_info();
