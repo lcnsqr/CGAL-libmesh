@@ -58,7 +58,7 @@ int main (int argc, char ** argv)
     // Ignorar se não for um elemento de contorno
     if ( ! elem->on_boundary() ) continue;
 
-    libMesh::out << "Face externa do elemento de contorno " << elem->id() << ":" << std::endl;
+    //libMesh::out << "Face externa do elemento de contorno " << elem->id() << ":" << std::endl;
 
     // Os três vértices de uma face de contorno
     // Kernel::Point_3 é o tipo ponto 3D da CGAL
@@ -77,7 +77,7 @@ int main (int argc, char ** argv)
 
         // Coordenadas do nó de contorno
         libMesh::Point p = *nptr;
-        libMesh::out << "Nó de contorno (" << nid << "): " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
+        //libMesh::out << "Nó de contorno (" << nid << "): " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
 
         // Atualizar vértice correspondente
         vertices[v] = Kernel::Point_3(p(0), p(1), p(2));
@@ -94,7 +94,6 @@ int main (int argc, char ** argv)
   libMesh::out << "Salvando cube.e" << std::endl;
   mesh.write("cube.e");
 
-  libMesh::out << "Salvando cube_refined.mesh" << std::endl;
   if (!CGAL::is_triangle_mesh(polyhedron)){
     std::cerr << "Input geometry is not triangulated." << std::endl;
   }
@@ -113,11 +112,15 @@ int main (int argc, char ** argv)
   // Mesh generation
   C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
 
+  std::cout << "number_of_facets: " << c3t3.number_of_facets() << std::endl;
+  std::cout << "number_of_edges: " << c3t3.number_of_edges() << std::endl;
+  std::cout << "number_of_corners: " << c3t3.number_of_corners() << std::endl;
+
   // Output
+  libMesh::out << "Salvando cube_refined.mesh" << std::endl;
   std::ofstream file("cube_refined.mesh");
   c3t3.output_to_medit(file);
 
-  std::cout << "Sucesso." << std::endl;
 
   // All done.
   return 0;
