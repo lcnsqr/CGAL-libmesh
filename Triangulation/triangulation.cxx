@@ -39,9 +39,12 @@ int main(int argc, char **argv) {
   // Dimensão da malha
   int dim = 3;
 
+  /*
   // Gerar uma malha uniforme num cubo de lado 2
   Real halfside = 1.;
   MeshTools::Generation::build_cube (mesh, 1, 1, 1, -halfside, halfside, -halfside, halfside, -halfside, halfside, TET4);
+  */
+  mesh.read ("3D.off");
 
   // Exibir informações da malha
   mesh.print_info();
