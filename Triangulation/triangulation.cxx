@@ -17,6 +17,9 @@
 
 #include <vector>
 
+
+#define NODE_BOUNDARY_ID 10
+
 typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
 typedef CGAL::Triangulation_vertex_base_with_info_3<unsigned, K>    Vb;
 typedef CGAL::Delaunay_triangulation_cell_base_3<K>                 Cb;
@@ -48,10 +51,6 @@ int main(int argc, char **argv) {
 
   // Exibir informações da malha
   mesh.print_info();
-
-  // Todos os nós que estão no contorno
-  std::unordered_set<dof_id_type> boundary_nodes;
-  boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
 
   /*
   std::vector< std::pair<Delaunay::Point,unsigned> > points;
@@ -107,7 +106,7 @@ int main(int argc, char **argv) {
   mesh.write("antes.e");
 
   // Número de células na malha nova
-  std::cout << "T.number_of_finite_cells() = " << T.number_of_finite_cells() << std::endl;
+  //std::cout << "T.number_of_finite_cells() = " << T.number_of_finite_cells() << std::endl;
 
   // Mapa para marcar os nós que já foram inseridos.
   size_t node_map_size = (size_t)ceil((double)mesh.n_nodes() / 8.0);
@@ -125,6 +124,10 @@ int main(int argc, char **argv) {
 	mesh.set_mesh_dimension(dim);
 	mesh.set_spatial_dimension(dim);
 
+  // Contorno
+  BoundaryInfo & boundary_info = mesh.get_boundary_info();
+
+  // Número sequencial de identificação do elemento
 	unsigned int elem_id = 0;
 
   // Percorrer todas as células da malha nova
@@ -157,7 +160,6 @@ int main(int argc, char **argv) {
       node_map_bit = (uint8_t)cit->vertex(n)->info() % 8;
 
       if ( ! (node_map[node_map_byte] & (0x01 << node_map_bit)) )
-      //if ( ! node_map[cit->vertex(n)->info()] )
       {
         // Ausente na malha nova, inserir nó
 				nodes[cit->vertex(n)->info()] = mesh.add_point(libMesh::Point(
@@ -167,7 +169,8 @@ int main(int argc, char **argv) {
 				));
         // Marcar como inserido no mapa
         node_map[node_map_byte] = node_map[node_map_byte] | (0x01 << node_map_bit);
-        //node_map[cit->vertex(n)->info()] = 1;
+        // Incluir como nó de contorno
+        boundary_info.add_node(nodes[cit->vertex(n)->info()], NODE_BOUNDARY_ID);
       }
 
 			// Definir n-ésimo nó do elemento
@@ -198,6 +201,11 @@ int main(int argc, char **argv) {
 	// Exibir informações da malha reconstruída
   mesh.print_info();
 
+  // Todos os nós que estão no contorno
+  std::unordered_set<dof_id_type> boundary_nodes;
+  boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
+  std::cout << "Boundary nodes: " << boundary_nodes.size() << std::endl;
+  
   // Salvar malha gerada
   mesh.write("depois.e");
 
