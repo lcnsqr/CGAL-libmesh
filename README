@@ -1,3 +1,6 @@
 Compilação da libmesh com interface para o tetgen
 
 ../configure --prefix=/usr/local --with-vtk-include=/usr/local/include/vtk-8.2 --with-vtk-lib=/usr/local/lib --enable-petsc=yes --enable-petsc-required --enable-slepc --enable-slepc-required --enable-tetgen=yes --enable-triangle=yes --disable-strict-lgpl METHODS="opt"
+
+Detalhes da construção da malha libmesh em src/clib/mesh_clib/M1200_SingleFracture.cxx
+na função M1200_SingleFracture::_build_libmesh
