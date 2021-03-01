@@ -37,6 +37,8 @@
 #include "libmesh/replicated_mesh.h"
 #include "libmesh/utility.h" // libmesh_map_find()
 
+#include "libmesh/boundary_info.h"
+
 // Bring in everything from the libMesh namespace
 using namespace libMesh;
 
@@ -209,6 +211,20 @@ void add_off_convex_hull_to_mesh(MeshBase & mesh,
   TetGenMeshInterface t(off_mesh);
   t.pointset_convexhull();
 
+  // OFF mesh boundary info
+  BoundaryInfo & off_mesh_bi = off_mesh.get_boundary_info();
+
+  for (auto & elem : off_mesh.element_ptr_range())
+    for (auto s : elem->side_index_range())
+      if (elem->neighbor_ptr(s) == nullptr)
+        {
+          // Add side to the boundary
+          off_mesh_bi.add_side(elem, s, 0);
+        }
+
+  // Este boundary_info deve ser transferido para a malha de destino
+  off_mesh_bi.nodeset_name(0) = "ellipsoid";
+
   // Now add all nodes from the boundary of the off_mesh to the input mesh.
 
   // Map from "node id in off_mesh" -> "node id in mesh".  Initially inserted
@@ -244,6 +260,10 @@ void add_off_convex_hull_to_mesh(MeshBase & mesh,
       (*it).second = new_node->id();
     }
 
+  // Input mesh boundary info
+  BoundaryInfo & mesh_bi = mesh.get_boundary_info();
+  mesh_bi.nodeset_name(0) = "ellipsoid";
+
   // With the points added and the map data structure in place, we are
   // ready to add each TRI3 element of the off_mesh to the input Mesh
   // with proper node assignments
@@ -251,6 +271,9 @@ void add_off_convex_hull_to_mesh(MeshBase & mesh,
     if (old_elem->type() == TRI3)
       {
         Elem * new_elem = mesh.add_elem(new Tri3);
+
+				// Definir subdomain
+				//elem->subdomain_id() = subdomain_mgr.flow();
 
         // Assign nodes in new elements.  Since this is an example,
         // we'll do it in several steps.
@@ -262,6 +285,34 @@ void add_off_convex_hull_to_mesh(MeshBase & mesh,
             // Node pointer assigned from input mesh
             new_elem->set_node(i) = mesh.node_ptr(new_node_id);
           }
+
+        for (auto s : new_elem->side_index_range())
+          if (new_elem->neighbor_ptr(s) == nullptr)
+            {
+              // Add side to the boundary
+              mesh_bi.add_side(new_elem, s, 0);
+            }
+
+				// Ajusta o boundary info
+				// OFF Mesh : Source
+				// Input mesh : Target
+				// esrc : Element from source mesh
+				// msrc_bi: Source mesh boundary info
+				// mesh_bi: Target mesh boundary info
+				/*
+				for (uint side=0; side<esrc->n_sides(); side++)
+        {
+          // Fills a user-provided std::vector with the boundary ids associated with Node node.
+					vector<boundary_id_type> vec;
+					msrc_bi.boundary_ids( esrc, side, vec );
+					for ( auto btype : vec )
+					{
+						mesh_bi.add_side(elem, side, btype);
+					}
+				}
+				*/
+
+
       }
 #else
   // Avoid compiler warnings
