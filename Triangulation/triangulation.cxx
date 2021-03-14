@@ -18,10 +18,11 @@
 #include <vector>
 
 
-#define NODE_BOUNDARY_ID 10
+#define RAND ((double)(rand() >> 1)/((RAND_MAX >> 1) + 1))
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
-typedef CGAL::Triangulation_vertex_base_with_info_3<unsigned, K>    Vb;
+// O info do ponto armazena o id de um nó (se houver) na casca (libmesh) original
+typedef CGAL::Triangulation_vertex_base_with_info_3<libMesh::dof_id_type, K>    Vb;
 typedef CGAL::Delaunay_triangulation_cell_base_3<K>                 Cb;
 typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                Tds;
 //Use the Fast_location tag. Default or Compact_location works too.
@@ -37,175 +38,220 @@ int main(int argc, char **argv) {
   LibMeshInit init (argc, argv);
 
   // Instanciar uma nova malha
-  Mesh mesh(init.comm());
+  Mesh mesh_hull(init.comm());
 
   // Dimensão da malha
   int dim = 3;
 
-  /*
-  // Gerar uma malha uniforme num cubo de lado 2
+  // Gerar uma malha uniforme num cubo de lado 2 e aresta com 15 elementos
   Real halfside = 1.;
-  MeshTools::Generation::build_cube (mesh, 1, 1, 1, -halfside, halfside, -halfside, halfside, -halfside, halfside, TET4);
-  */
-  mesh.read ("3D.off");
+  MeshTools::Generation::build_cube (mesh_hull, 15, 15, 15, -halfside, halfside, -halfside, halfside, -halfside, halfside, TET4);
+  //mesh.read ("3D.off");
+
+  // Contorno do casco, assumindo que existem nós associados a contornos
+  BoundaryInfo & boundary_info_hull = mesh_hull.get_boundary_info();
 
   // Exibir informações da malha
-  mesh.print_info();
+  mesh_hull.print_info();
+  boundary_info_hull.print_summary();
 
-  /*
-  std::vector< std::pair<Delaunay::Point,unsigned> > points;
-  points.push_back( std::make_pair(Delaunay::Point(0,0,0),0) );
-  points.push_back( std::make_pair(Delaunay::Point(1,0,0),1) );
-  points.push_back( std::make_pair(Delaunay::Point(0,1,0),2) );
-  points.push_back( std::make_pair(Delaunay::Point(0,0,1),3) );
-  points.push_back( std::make_pair(Delaunay::Point(2,2,2),4) );
-  points.push_back( std::make_pair(Delaunay::Point(-1,0,1),5) );
-  points.push_back( std::make_pair(Delaunay::Point(-1,2,1),6) );
+  // Vetor de tuplas dof_id/boundary_id referente a nós e contornos
+  typedef std::vector<std::tuple<dof_id_type,boundary_id_type>> nodes_boundaries_type;
+  nodes_boundaries_type nodes_boundaries;
+  nodes_boundaries = boundary_info_hull.build_node_list();
 
-  // [CGAL] 3D Delaunay triangulation of points set
-  Delaunay T( points.begin(), points.end() );
-  */
+  // Mapa com cada nó e seus contornos correspondentes
+  std::map<dof_id_type, std::vector<boundary_id_type>> hull_node_boundaries;
+
+  // Preencher o mapa 
+  for (nodes_boundaries_type::iterator nb_it = nodes_boundaries.begin(); 
+    nb_it != nodes_boundaries.end();
+    ++nb_it)
+    {
+       hull_node_boundaries[std::get<0>(*nb_it)].push_back(std::get<1>(*nb_it));
+    }
 
   // [CGAL] Instanciar uma triangulação Delaunay 3D vazia
   Delaunay T;
 
+  // [CGAL] Nós inseridos na malha CGAL
+  std::map<dof_id_type, bool> cgal_added_nodes;
 
-  // Passar por todos os nós ativos da malha original
-  MeshBase::const_node_iterator node = mesh.active_nodes_begin(), end_node = mesh.active_nodes_end();
-  for ( ; node != end_node ; node++ )
-	{
-    // Ponteiro para o nó
-    const Node * nptr = *node;
+  // Inserir nós de contorno na malha CGAL
+  for (auto & elem : mesh_hull.element_ptr_range())
+    for (auto s : elem->side_index_range())
+      if (elem->neighbor_ptr(s) == nullptr)
+      {
+        // Em cada face de elemento de contorno, gerar um mapa 
+        // de contornos e seus nós correspondentes
+        std::map<boundary_id_type, std::vector<dof_id_type>> hull_boundary_nodes;
 
-    // Coordenadas do nó
-    libMesh::Point p = *nptr;
+        // Face do elemento
+        std::unique_ptr<Elem> side = elem->side_ptr(s);
 
-    // Inserir ponto na triangulação
-    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(p(0),p(1),p(2)));
+        // Percorrer cada nó na face
+        for (auto n : side->node_index_range())
+        {
+          // Identificar boundary IDs associados ao nó
+          for (std::vector<boundary_id_type>::iterator bid_it = hull_node_boundaries[side->node_id(n)].begin();
+               bid_it != hull_node_boundaries[side->node_id(n)].end();
+               ++bid_it)
+          {
+            // Incluir nó no vetor correspondente a cada um de seus boundary ID
+            hull_boundary_nodes[*bid_it].push_back(side->node_id(n));
+            // Se algum boundary ID totalizar o número de
+            // nós total da face, a face está no contorno
+            if ( hull_boundary_nodes[*bid_it].size() == side->n_nodes() )
+            {
+              // Todos os nós deste lado estão no contorno *bid_it
+              for (std::vector<dof_id_type>::iterator node_it = hull_boundary_nodes[*bid_it].begin();
+                   node_it != hull_boundary_nodes[*bid_it].end();
+                   ++node_it)
+              {
 
-    /*
-    // Verificar se nó está na face externa do elemento
-    if (boundary_nodes.find(nptr->id()) != boundary_nodes.end()){
-      // Nó de contorno
-      libMesh::out << "Nó de contorno (" << nptr->id() << "): " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
-      vh->info() = 1;
-		}
-    else {
-      // Nó interno
-      libMesh::out << "Nó interno (" << nptr->id() << "): " << p(0) << ", " << p(1) << ", " << p(2) << std::endl;
-      vh->info() = 0;
-    }
-    */
+                // Ponteiro para o nó
+                const Node * nptr = mesh_hull.node_ptr(*node_it);
 
-    // Marcar o nó inserido com seu ID na malha original
-    vh->info() = nptr->id();
+                // Coordenadas do nó
+                libMesh::Point p = *nptr;
 
-	}
+                // Inserir ponto na triangulação
+                if ( ! cgal_added_nodes[*node_it] )
+                {
+                  Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(p(0),p(1),p(2)));
+                  // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
+                  vh->info() = *node_it + 1;
+                  // Marcar nó como incluído
+                  cgal_added_nodes[*node_it] = true;
+                }
+
+              }
+            }
+          }
+        }
+      }
+
+
+  // Incluir uns pontinhos malandros
+  for (int i = 0 ; i < 3000; i++)
+    T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
 
   // Salvar malha original
-  mesh.write("antes.e");
+  mesh_hull.write("antes.e");
 
-  // Número de células na malha nova
-  //std::cout << "T.number_of_finite_cells() = " << T.number_of_finite_cells() << std::endl;
+  assert(T.is_valid());
 
-  // Mapa para marcar os nós que já foram inseridos.
-  size_t node_map_size = (size_t)ceil((double)mesh.n_nodes() / 8.0);
-  char * node_map = (char*)malloc(node_map_size);
-  memset(node_map, 0, node_map_size);
-
-  size_t node_map_byte;
-  uint8_t node_map_bit;
-
-  // Ponteiros para os nós inseridos na nova malha
-  libMesh::Node ** nodes = (libMesh::Node **)malloc(mesh.n_nodes() * sizeof(libMesh::Node *));
-
-	// Limpar malha original
-	mesh.clear();
+	// Nova malha libmesh
+  Mesh mesh(init.comm());
 	mesh.set_mesh_dimension(dim);
 	mesh.set_spatial_dimension(dim);
 
-  // Contorno
-  BoundaryInfo & boundary_info = mesh.get_boundary_info();
+  // Nós inseridos na nova malha libmesh
+  std::map<Delaunay::Vertex_handle, bool> mesh_added_nodes;
 
-  // Número sequencial de identificação do elemento
+  // Mapa vertex_handle -> novo node id
+  std::map<Delaunay::Vertex_handle, dof_id_type> cgal_vertex_to_new_node;
+
+  // Mapa com cada nó da nova malha libmesh e seus contornos correspondentes
+  std::map<dof_id_type, std::vector<boundary_id_type>> node_boundaries;
+
+  // Número sequencial de identificação do novo elemento
 	unsigned int elem_id = 0;
 
-  // Percorrer todas as células da malha nova
+  // [CGAL] Percorrer todas as células da malha gerada
   for (Delaunay::Finite_cells_iterator cit = T.finite_cells_begin(); cit != T.finite_cells_end(); cit++)
   {
-    /*
-    std::cout << "Cell" << std::endl;
-    std::cout << cit->vertex(0)->info() << " -> " << cit->vertex(0)->point() << std::endl;
-    std::cout << cit->vertex(1)->info() << " -> " << cit->vertex(1)->point() << std::endl;
-    std::cout << cit->vertex(2)->info() << " -> " << cit->vertex(2)->point() << std::endl;
-    std::cout << cit->vertex(3)->info() << " -> " << cit->vertex(3)->point() << std::endl;
-    */
 
 		// Novo elemento na malha libmesh nova
 		libMesh::Elem * elem = new libMesh::Tet4;
 		elem->set_id(elem_id++);
 
-    /*
-		std::vector< std::pair<libMesh::Node *, unsigned> > nodes;
-    */
-
 		// Percorre os 4 pontos do tetraedro e insere os nós correspondentes
 		for (int n = 0; n < 4; n++)
 		{
 
-      // Usando o ID do ponto, verificar se ainda 
-      // não foi inserido na malha libmesh nova
+      // Nó a inserir na nova malha
+      dof_id_type new_node_id;
+      Node *new_node;
 
-      node_map_byte = (size_t)cit->vertex(n)->info() / 8;
-      node_map_bit = (uint8_t)cit->vertex(n)->info() % 8;
-
-      if ( ! (node_map[node_map_byte] & (0x01 << node_map_bit)) )
+      if ( ! mesh_added_nodes[cit->vertex(n)] )
       {
         // Ausente na malha nova, inserir nó
-				nodes[cit->vertex(n)->info()] = mesh.add_point(libMesh::Point(
+				new_node = mesh.add_point(libMesh::Point(
 					cit->vertex(n)->point().x(), 
 					cit->vertex(n)->point().y(), 
 					cit->vertex(n)->point().z()
 				));
+        new_node_id = new_node->id();
         // Marcar como inserido no mapa
-        node_map[node_map_byte] = node_map[node_map_byte] | (0x01 << node_map_bit);
-        // Incluir como nó de contorno
-        boundary_info.add_node(nodes[cit->vertex(n)->info()], NODE_BOUNDARY_ID);
+        mesh_added_nodes[cit->vertex(n)] = true;
+        // Associar ao nó inserido
+        cgal_vertex_to_new_node[cit->vertex(n)] = new_node_id;
+
+        // Se vertex refere-se a um nó de contorno, recuperar seus boundary IDs
+        if ( cit->vertex(n)->info() > 0 )
+        {
+          // Associar novo node -> boundary ids
+          node_boundaries[new_node_id] = hull_node_boundaries[cit->vertex(n)->info() - 1];
+        }
+
+      }
+      else
+      {
+        // Nó já foi inserido
+        new_node_id = cgal_vertex_to_new_node[cit->vertex(n)];
       }
 
 			// Definir n-ésimo nó do elemento
-			elem->set_node(n) = nodes[cit->vertex(n)->info()];
+			elem->set_node(n) = mesh.node_ptr(new_node_id);
 		}
 
 		// Incluir elemento na malha nova
 		elem = mesh.add_elem(elem);
 
-
-
-		/*
-
-		libMesh::Node * n0 =vertices_map[it->vertex(0)];
-		libMesh::Node * n1 =vertices_map[it->vertex(1)];
-		libMesh::Node * n2 =vertices_map[it->vertex(2)];
-		libMesh::Node * n4 =vertices_map[it->vertex(4)];
-
-
-		delete elem;
-		*/
-
   }
 
-  free(node_map);
-  free(nodes);
+  // Contorno a definir
+  BoundaryInfo & boundary_info = mesh.get_boundary_info();
 
+  // Construir Boundary info da malha nova
+  for (auto & elem : mesh.element_ptr_range())
+    for (auto s : elem->side_index_range())
+      if (elem->neighbor_ptr(s) == nullptr)
+      {
+        // Em cada face de elemento de contorno, gerar um mapa 
+        // de contornos e seus nós correspondentes
+        std::map<boundary_id_type, std::vector<dof_id_type>> boundary_nodes;
+
+        // Face do elemento
+        std::unique_ptr<Elem> side = elem->side_ptr(s);
+
+        // Percorrer cada nó na face
+        for (auto n : side->node_index_range())
+        {
+          // Identificar boundary IDs associados ao nó
+          for (std::vector<boundary_id_type>::iterator bid_it = node_boundaries[side->node_id(n)].begin();
+               bid_it != node_boundaries[side->node_id(n)].end();
+               ++bid_it)
+          {
+            // Incluir nó no contador da boundary ID
+            boundary_nodes[*bid_it].push_back(side->node_id(n));
+            // Se algum boundary ID totalizar o número de
+            // nós total da face, a face está no contorno
+            if ( boundary_nodes[*bid_it].size() == side->n_nodes() )
+            {
+              // Todos os nós deste lado estão no contorno *bid_it
+              boundary_info.add_side(elem, s, *bid_it);
+            }
+          }
+        }
+      }
+
+  mesh.prepare_for_use();
 	// Exibir informações da malha reconstruída
   mesh.print_info();
+  boundary_info.print_summary();
 
-  // Todos os nós que estão no contorno
-  std::unordered_set<dof_id_type> boundary_nodes;
-  boundary_nodes = libMesh::MeshTools::find_boundary_nodes(mesh);
-  std::cout << "Boundary nodes: " << boundary_nodes.size() << std::endl;
-  
   // Salvar malha gerada
   mesh.write("depois.e");
 
