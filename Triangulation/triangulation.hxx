@@ -29,18 +29,19 @@ typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                Tds;
 typedef CGAL::Delaunay_triangulation_3<K, Tds, CGAL::Fast_location> Delaunay;
 //typedef Delaunay::Point                                             Point;
 
-// Classe para reconstruir uma malha libMesh a 
-// partir de seus pontos de contorno, usando CGAL
+// Classe para construir uma malha libMesh usando CGAL 
+// a partir de uma malha original com contornos definidos
 namespace mesh3D {
 
   class Triangulation {
 
     public:
-    Triangulation(libMesh::Mesh * mesh);
+    Triangulation(libMesh::Mesh * in_mesh, libMesh::Mesh * out_mesh);
+
     void remesh();
 
-    private:
-    libMesh::Mesh * _mesh;
+    libMesh::Mesh * _in_mesh;
+    libMesh::Mesh * _out_mesh;
 
   };
 

@@ -3,22 +3,25 @@
 // libMesh namespace
 using namespace libMesh;
 
-mesh3D::Triangulation::Triangulation(libMesh::Mesh * mesh){
-  this->_mesh = mesh;
+mesh3D::Triangulation::Triangulation(libMesh::Mesh * in_mesh, libMesh::Mesh * out_mesh){
+  this->_in_mesh = in_mesh;
+  this->_out_mesh = out_mesh;
 }
 
 void mesh3D::Triangulation::remesh(){
   // Contorno do casco, assumindo que existem nós associados a contornos
-  BoundaryInfo & boundary_info = this->_mesh->get_boundary_info();
+  BoundaryInfo & in_boundary_info = _in_mesh->get_boundary_info();
 
   // Exibir informações da malha
-  this->_mesh->print_info();
-  boundary_info.print_summary();
+#ifdef DEBUG
+  _in_mesh->print_info();
+  in_boundary_info.print_summary();
+#endif
 
   // Vetor de tuplas dof_id/boundary_id referente a nós e contornos
   typedef std::vector<std::tuple<dof_id_type,boundary_id_type>> nodes_boundaries_type;
   nodes_boundaries_type nodes_boundaries;
-  nodes_boundaries = boundary_info.build_node_list();
+  nodes_boundaries = in_boundary_info.build_node_list();
 
   // Mapa com cada nó e seus contornos correspondentes
   std::map<dof_id_type, std::vector<boundary_id_type>> hull_node_boundaries;
@@ -38,7 +41,7 @@ void mesh3D::Triangulation::remesh(){
   std::map<dof_id_type, bool> cgal_added_nodes;
 
   // Inserir nós de contorno na malha CGAL
-  for (auto & elem : this->_mesh->element_ptr_range())
+  for (auto & elem : _in_mesh->element_ptr_range())
     for (auto s : elem->side_index_range())
       if (elem->neighbor_ptr(s) == nullptr)
       {
@@ -70,7 +73,7 @@ void mesh3D::Triangulation::remesh(){
               {
 
                 // Ponteiro para o nó
-                const Node * nptr = this->_mesh->node_ptr(*node_it);
+                const Node * nptr = _in_mesh->node_ptr(*node_it);
 
                 // Coordenadas do nó
                 libMesh::Point p = *nptr;
@@ -96,16 +99,12 @@ void mesh3D::Triangulation::remesh(){
   for (int i = 0 ; i < 3000; i++)
     T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
 
-  // Salvar malha original
-  this->_mesh->write("antes.e");
-
   assert(T.is_valid());
 
 	// Nova malha libmesh
+  _out_mesh->clear();
   // Preservar dimensão da malha
-  int dim = this->_mesh->mesh_dimension();
-  this->_mesh->clear();
-	this->_mesh->set_mesh_dimension(dim);
+	_out_mesh->set_mesh_dimension(_in_mesh->mesh_dimension());
 
   // Nós inseridos na nova malha libmesh
   std::map<Delaunay::Vertex_handle, bool> mesh_added_nodes;
@@ -128,7 +127,7 @@ void mesh3D::Triangulation::remesh(){
 		elem->set_id(elem_id++);
 
 		// Percorre os 4 pontos do tetraedro e insere os nós correspondentes
-		for (int n = 0; n < 4; n++)
+		for (unsigned int n = 0; n < elem->n_nodes(); n++)
 		{
 
       // Nó a inserir na nova malha
@@ -138,7 +137,7 @@ void mesh3D::Triangulation::remesh(){
       if ( ! mesh_added_nodes[cit->vertex(n)] )
       {
         // Ausente na malha nova, inserir nó
-				new_node = this->_mesh->add_point(libMesh::Point(
+				new_node = _out_mesh->add_point(libMesh::Point(
 					cit->vertex(n)->point().x(), 
 					cit->vertex(n)->point().y(), 
 					cit->vertex(n)->point().z()
@@ -164,20 +163,20 @@ void mesh3D::Triangulation::remesh(){
       }
 
 			// Definir n-ésimo nó do elemento
-			elem->set_node(n) = this->_mesh->node_ptr(new_node_id);
+			elem->set_node(n) = _out_mesh->node_ptr(new_node_id);
 		}
 
 		// Incluir elemento na malha nova
-		elem = this->_mesh->add_elem(elem);
+		elem = _out_mesh->add_elem(elem);
 
   }
 
   // Contorno a reconstruir
-  boundary_info.clear();
-  boundary_info.print_summary();
+  BoundaryInfo & out_boundary_info = _out_mesh->get_boundary_info();
+  out_boundary_info.clear();
 
   // Construir Boundary info da malha nova
-  for (auto & elem : this->_mesh->element_ptr_range())
+  for (auto & elem : _out_mesh->element_ptr_range())
     for (auto s : elem->side_index_range())
       if (elem->neighbor_ptr(s) == nullptr)
       {
@@ -203,23 +202,22 @@ void mesh3D::Triangulation::remesh(){
             if ( boundary_nodes[*bid_it].size() == side->n_nodes() )
             {
               // Todos os nós deste lado estão no contorno *bid_it
-              boundary_info.add_side(elem, s, *bid_it);
+              out_boundary_info.add_side(elem, s, *bid_it);
               // Inserir nós no contorno
               for (auto m : side->node_index_range())
               {
-                boundary_info.add_node(side->node_ptr(m), *bid_it);
+                out_boundary_info.add_node(side->node_ptr(m), *bid_it);
               }
             }
           }
         }
       }
 
-  this->_mesh->prepare_for_use();
-	// Exibir informações da malha reconstruída
-  this->_mesh->print_info();
-  boundary_info.print_summary();
+  _out_mesh->prepare_for_use();
 
-  // Salvar malha gerada
-  this->_mesh->write("depois.e");
+#ifdef DEBUG
+  _out_mesh->print_info();
+  out_boundary_info.print_summary();
+#endif
 
 }
