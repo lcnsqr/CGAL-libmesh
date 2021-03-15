@@ -16,7 +16,8 @@ int main(int argc, char **argv) {
   MeshTools::Generation::build_cube (mesh_hull, 15, 15, 15, -halfside, halfside, -halfside, halfside, -halfside, halfside, TET4);
   //mesh.read ("3D.off");
 
-  triangulate(mesh_hull);
+  mesh3D::Triangulation new_mesh(&mesh_hull);
+  new_mesh.remesh();
 
   return 0;
 }

@@ -3,12 +3,16 @@
 // libMesh namespace
 using namespace libMesh;
 
-void triangulate(Mesh & mesh){
+mesh3D::Triangulation::Triangulation(libMesh::Mesh * mesh){
+  this->_mesh = mesh;
+}
+
+void mesh3D::Triangulation::remesh(){
   // Contorno do casco, assumindo que existem nós associados a contornos
-  BoundaryInfo & boundary_info = mesh.get_boundary_info();
+  BoundaryInfo & boundary_info = this->_mesh->get_boundary_info();
 
   // Exibir informações da malha
-  mesh.print_info();
+  this->_mesh->print_info();
   boundary_info.print_summary();
 
   // Vetor de tuplas dof_id/boundary_id referente a nós e contornos
@@ -34,7 +38,7 @@ void triangulate(Mesh & mesh){
   std::map<dof_id_type, bool> cgal_added_nodes;
 
   // Inserir nós de contorno na malha CGAL
-  for (auto & elem : mesh.element_ptr_range())
+  for (auto & elem : this->_mesh->element_ptr_range())
     for (auto s : elem->side_index_range())
       if (elem->neighbor_ptr(s) == nullptr)
       {
@@ -66,7 +70,7 @@ void triangulate(Mesh & mesh){
               {
 
                 // Ponteiro para o nó
-                const Node * nptr = mesh.node_ptr(*node_it);
+                const Node * nptr = this->_mesh->node_ptr(*node_it);
 
                 // Coordenadas do nó
                 libMesh::Point p = *nptr;
@@ -93,15 +97,15 @@ void triangulate(Mesh & mesh){
     T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
 
   // Salvar malha original
-  mesh.write("antes.e");
+  this->_mesh->write("antes.e");
 
   assert(T.is_valid());
 
 	// Nova malha libmesh
   // Preservar dimensão da malha
-  int dim = mesh.mesh_dimension();
-  mesh.clear();
-	mesh.set_mesh_dimension(dim);
+  int dim = this->_mesh->mesh_dimension();
+  this->_mesh->clear();
+	this->_mesh->set_mesh_dimension(dim);
 
   // Nós inseridos na nova malha libmesh
   std::map<Delaunay::Vertex_handle, bool> mesh_added_nodes;
@@ -134,7 +138,7 @@ void triangulate(Mesh & mesh){
       if ( ! mesh_added_nodes[cit->vertex(n)] )
       {
         // Ausente na malha nova, inserir nó
-				new_node = mesh.add_point(libMesh::Point(
+				new_node = this->_mesh->add_point(libMesh::Point(
 					cit->vertex(n)->point().x(), 
 					cit->vertex(n)->point().y(), 
 					cit->vertex(n)->point().z()
@@ -160,11 +164,11 @@ void triangulate(Mesh & mesh){
       }
 
 			// Definir n-ésimo nó do elemento
-			elem->set_node(n) = mesh.node_ptr(new_node_id);
+			elem->set_node(n) = this->_mesh->node_ptr(new_node_id);
 		}
 
 		// Incluir elemento na malha nova
-		elem = mesh.add_elem(elem);
+		elem = this->_mesh->add_elem(elem);
 
   }
 
@@ -173,7 +177,7 @@ void triangulate(Mesh & mesh){
   boundary_info.print_summary();
 
   // Construir Boundary info da malha nova
-  for (auto & elem : mesh.element_ptr_range())
+  for (auto & elem : this->_mesh->element_ptr_range())
     for (auto s : elem->side_index_range())
       if (elem->neighbor_ptr(s) == nullptr)
       {
@@ -210,12 +214,12 @@ void triangulate(Mesh & mesh){
         }
       }
 
-  mesh.prepare_for_use();
+  this->_mesh->prepare_for_use();
 	// Exibir informações da malha reconstruída
-  mesh.print_info();
+  this->_mesh->print_info();
   boundary_info.print_summary();
 
   // Salvar malha gerada
-  mesh.write("depois.e");
+  this->_mesh->write("depois.e");
 
 }
