@@ -1,64 +1,20 @@
-// libMesh
-#include "libmesh/libmesh.h"
-#include "libmesh/mesh.h"
-#include "libmesh/mesh_generation.h"
-#include "libmesh/elem.h"
-#include "libmesh/cell_tet4.h"
-#include "libmesh/node.h"
-#include "libmesh/mesh_tools.h"
-#include "libmesh/boundary_info.h"
-// Formato ExodusII
-#include "libmesh/exodusII_io.h"
-
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Delaunay_triangulation_3.h>
-#include <CGAL/Delaunay_triangulation_cell_base_3.h>
-#include <CGAL/Triangulation_vertex_base_with_info_3.h>
-
-#include <vector>
-
-
-#define RAND ((double)(rand() >> 1)/((RAND_MAX >> 1) + 1))
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
-// O info do ponto armazena o id de um nó (se houver) na casca (libmesh) original
-typedef CGAL::Triangulation_vertex_base_with_info_3<libMesh::dof_id_type, K>    Vb;
-typedef CGAL::Delaunay_triangulation_cell_base_3<K>                 Cb;
-typedef CGAL::Triangulation_data_structure_3<Vb, Cb>                Tds;
-//Use the Fast_location tag. Default or Compact_location works too.
-typedef CGAL::Delaunay_triangulation_3<K, Tds, CGAL::Fast_location> Delaunay;
-//typedef Delaunay::Point                                             Point;
+#include "triangulation.hxx"
 
 // libMesh namespace
 using namespace libMesh;
 
-int main(int argc, char **argv) {
-
-  // Iniciar libMesh e bibliotecas subjacentes (PETSc)
-  LibMeshInit init (argc, argv);
-
-  // Instanciar uma nova malha
-  Mesh mesh_hull(init.comm());
-
-  // Dimensão da malha
-  int dim = 3;
-
-  // Gerar uma malha uniforme num cubo de lado 2 e aresta com 15 elementos
-  Real halfside = 1.;
-  MeshTools::Generation::build_cube (mesh_hull, 15, 15, 15, -halfside, halfside, -halfside, halfside, -halfside, halfside, TET4);
-  //mesh.read ("3D.off");
-
+void triangulate(Mesh & mesh){
   // Contorno do casco, assumindo que existem nós associados a contornos
-  BoundaryInfo & boundary_info_hull = mesh_hull.get_boundary_info();
+  BoundaryInfo & boundary_info = mesh.get_boundary_info();
 
   // Exibir informações da malha
-  mesh_hull.print_info();
-  boundary_info_hull.print_summary();
+  mesh.print_info();
+  boundary_info.print_summary();
 
   // Vetor de tuplas dof_id/boundary_id referente a nós e contornos
   typedef std::vector<std::tuple<dof_id_type,boundary_id_type>> nodes_boundaries_type;
   nodes_boundaries_type nodes_boundaries;
-  nodes_boundaries = boundary_info_hull.build_node_list();
+  nodes_boundaries = boundary_info.build_node_list();
 
   // Mapa com cada nó e seus contornos correspondentes
   std::map<dof_id_type, std::vector<boundary_id_type>> hull_node_boundaries;
@@ -78,7 +34,7 @@ int main(int argc, char **argv) {
   std::map<dof_id_type, bool> cgal_added_nodes;
 
   // Inserir nós de contorno na malha CGAL
-  for (auto & elem : mesh_hull.element_ptr_range())
+  for (auto & elem : mesh.element_ptr_range())
     for (auto s : elem->side_index_range())
       if (elem->neighbor_ptr(s) == nullptr)
       {
@@ -110,7 +66,7 @@ int main(int argc, char **argv) {
               {
 
                 // Ponteiro para o nó
-                const Node * nptr = mesh_hull.node_ptr(*node_it);
+                const Node * nptr = mesh.node_ptr(*node_it);
 
                 // Coordenadas do nó
                 libMesh::Point p = *nptr;
@@ -132,19 +88,20 @@ int main(int argc, char **argv) {
       }
 
 
-  // Incluir uns pontinhos malandros
+  // Incluir pontos internos aleatórios
   for (int i = 0 ; i < 3000; i++)
     T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
 
   // Salvar malha original
-  mesh_hull.write("antes.e");
+  mesh.write("antes.e");
 
   assert(T.is_valid());
 
 	// Nova malha libmesh
-  Mesh mesh(init.comm());
+  // Preservar dimensão da malha
+  int dim = mesh.mesh_dimension();
+  mesh.clear();
 	mesh.set_mesh_dimension(dim);
-	mesh.set_spatial_dimension(dim);
 
   // Nós inseridos na nova malha libmesh
   std::map<Delaunay::Vertex_handle, bool> mesh_added_nodes;
@@ -211,8 +168,9 @@ int main(int argc, char **argv) {
 
   }
 
-  // Contorno a definir
-  BoundaryInfo & boundary_info = mesh.get_boundary_info();
+  // Contorno a reconstruir
+  boundary_info.clear();
+  boundary_info.print_summary();
 
   // Construir Boundary info da malha nova
   for (auto & elem : mesh.element_ptr_range())
@@ -242,6 +200,11 @@ int main(int argc, char **argv) {
             {
               // Todos os nós deste lado estão no contorno *bid_it
               boundary_info.add_side(elem, s, *bid_it);
+              // Inserir nós no contorno
+              for (auto m : side->node_index_range())
+              {
+                boundary_info.add_node(side->node_ptr(m), *bid_it);
+              }
             }
           }
         }
@@ -255,6 +218,4 @@ int main(int argc, char **argv) {
   // Salvar malha gerada
   mesh.write("depois.e");
 
-
-  return 0;
 }
