@@ -1,4 +1,5 @@
 #include "triangulation.hxx"
+#include "poisson.hxx"
 
 // libMesh namespace
 using namespace libMesh;
@@ -31,6 +32,7 @@ int main(int argc, char **argv) {
 
   mesh.write("depois.e");
 
+  poisson(mesh);
+
   return 0;
 }
-

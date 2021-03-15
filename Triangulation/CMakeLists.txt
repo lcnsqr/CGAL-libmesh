@@ -60,7 +60,7 @@ message(STATUS "libMesh dir: ${LIBMESH_DIR}")
 # Creating entries for target: triangulation
 # ############################
 
-add_executable( test test.cxx triangulation.cxx )
+add_executable( test test.cxx triangulation.cxx poisson.cxx )
 
 add_to_cached_list( CGAL_LIBRARY_TARGETS )
 
