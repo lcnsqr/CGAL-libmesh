@@ -96,6 +96,9 @@ void mesh3D::Triangulation::remesh(){
 
 
   // Incluir pontos internos aleatórios
+  unsigned int seed;
+  getrandom((void *)&seed, sizeof(unsigned int), 0);
+  srand(seed);
   for (int i = 0 ; i < 3000; i++)
     T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
 

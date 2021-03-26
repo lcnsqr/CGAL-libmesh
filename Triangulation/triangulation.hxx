@@ -17,7 +17,7 @@
 
 #include <vector>
 
-
+#include <sys/random.h>
 #define RAND ((double)(rand() >> 1)/((RAND_MAX >> 1) + 1))
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel         K;
