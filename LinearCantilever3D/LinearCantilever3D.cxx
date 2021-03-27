@@ -128,7 +128,7 @@ void LinearElasticity::assemble()
         }
 
       // assemble \int_\Gamma g_i v_i \ds
-      VectorValue<Number> g_vec(0., 0., -1.);
+      VectorValue<Number> g_vec(0., 1., -1.);
       {
         for (auto side : elem->side_index_range())
           if (elem->neighbor_ptr(side) == nullptr)

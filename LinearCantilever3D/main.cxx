@@ -31,9 +31,9 @@ int main (int argc, char ** argv)
                                      24,
                                      24,
                                      3,
-                                     0., 1.,
-                                     0., 1.,
-                                     0., 0.1,
+                                     -.5, .5,
+                                     -.5, .5,
+                                     -.05, .05,
                                      TET4);
 
   // Print information about the mesh to the screen.
@@ -45,11 +45,28 @@ int main (int argc, char ** argv)
   for (const auto & elem : mesh.element_ptr_range())
     {
 
-      for (auto side : elem->side_index_range())
+      for (auto s : elem->side_index_range())
         {
-          if (mesh.get_boundary_info().has_boundary_id(elem, side, BOUNDARY_ID_MAX_Z))
+          if (mesh.get_boundary_info().has_boundary_id(elem, s, BOUNDARY_ID_MAX_Z))
             {
-              mesh.get_boundary_info().add_side(elem, side, PUSH_BOUNDARY_ID);
+              // Identificar se há pontos de impacto na face
+              int contact_points = 0;
+              // Ponteiro para a face do elemento
+              std::unique_ptr<Elem> side = elem->side_ptr(s);
+              // Percorrer cada nó na face
+              for (auto n : side->node_index_range())
+              {
+                // Ponto (coordenadas) referente ao nó
+                Point p = side->node_ref(n);
+                if ( sqrt(pow(p(0), 2.)+pow(p(1), 2.)) < .1 )
+                {
+                  contact_points++;
+                }
+              }
+              if ( contact_points == side->n_nodes() ){
+                // Incluir face como parte da área de impacto
+                mesh.get_boundary_info().add_side(elem, s, PUSH_BOUNDARY_ID);
+              }
             }
         }
 
