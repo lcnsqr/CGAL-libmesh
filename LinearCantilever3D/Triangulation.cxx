@@ -1,3 +1,4 @@
+#include "Boundaries.hxx"
 #include "Triangulation.hxx"
 
 // libMesh namespace

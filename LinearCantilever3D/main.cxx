@@ -1,3 +1,4 @@
+#include "Boundaries.hxx"
 #include "Triangulation.hxx"
 #include "LinearCantilever3D.hxx"
 
@@ -67,6 +68,14 @@ int main (int argc, char ** argv)
               if ( contact_points == side->n_nodes() ){
                 // Incluir face como parte da área de impacto
                 input_mesh.get_boundary_info().add_side(elem, s, PUSH_BOUNDARY_ID);
+
+                // Incluir cada nó da face
+                for (auto n : side->node_index_range())
+                {
+                  const Node * node = input_mesh.node_ptr(side->node_id(n));
+                  input_mesh.get_boundary_info().add_node(node, PUSH_BOUNDARY_ID);
+                }
+
               }
             }
         }

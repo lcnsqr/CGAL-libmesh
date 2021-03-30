@@ -71,17 +71,6 @@
 #include "libmesh/vector_value.h"
 #include "libmesh/utility.h"
 
-// boundary IDs
-#define BOUNDARY_ID_MIN_Z 0
-#define BOUNDARY_ID_MIN_Y 1
-#define BOUNDARY_ID_MAX_X 2
-#define BOUNDARY_ID_MAX_Y 3
-#define BOUNDARY_ID_MIN_X 4
-#define BOUNDARY_ID_MAX_Z 5
-#define NODE_BOUNDARY_ID 10
-#define EDGE_BOUNDARY_ID 20
-#define PUSH_BOUNDARY_ID 30
-
 #ifdef LIBMESH_HAVE_PETSC
 // This class allows us to set the solver and preconditioner
 // to be appropriate for linear elasticity.
