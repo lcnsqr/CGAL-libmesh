@@ -1,4 +1,4 @@
-#include "triangulation.hxx"
+#include "Triangulation.hxx"
 
 // libMesh namespace
 using namespace libMesh;
@@ -93,14 +93,41 @@ void mesh3D::Triangulation::remesh(){
           }
         }
       }
+      else
+      {
+        // Face não está no contorno
+        std::unique_ptr<Elem> side = elem->side_ptr(s);
+
+        // Percorrer cada nó na face
+        for (auto n : side->node_index_range())
+        {
+          // Ponteiro para o nó
+          const Node * nptr = _in_mesh->node_ptr(side->node_id(n));
+
+          // Coordenadas do nó
+          libMesh::Point p = *nptr;
+
+          // Inserir ponto na triangulação
+          if ( ! cgal_added_nodes[side->node_id(n)] )
+          {
+            Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(p(0),p(1),p(2)));
+            // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
+            vh->info() = side->node_id(n) + 1;
+            // Marcar nó como incluído
+            cgal_added_nodes[side->node_id(n)] = true;
+          }
+        }
+      }
 
 
   // Incluir pontos internos aleatórios
+  /*
   unsigned int seed;
   getrandom((void *)&seed, sizeof(unsigned int), 0);
   srand(seed);
   for (int i = 0 ; i < 3000; i++)
     T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
+  */
 
   assert(T.is_valid());
 

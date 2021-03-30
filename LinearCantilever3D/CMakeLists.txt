@@ -60,7 +60,7 @@ message(STATUS "libMesh dir: ${LIBMESH_DIR}")
 # Creating entries for target: LinearCantilever3D
 # ############################
 
-add_executable( LinearCantilever3D main.cxx LinearCantilever3D.cxx )
+add_executable( LinearCantilever3D main.cxx LinearCantilever3D.cxx Triangulation.cxx )
 
 add_to_cached_list( CGAL_LIBRARY_TARGETS )
 

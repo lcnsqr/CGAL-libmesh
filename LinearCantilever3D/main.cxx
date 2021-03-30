@@ -1,4 +1,4 @@
-//#include "Triangulation.hxx"
+#include "Triangulation.hxx"
 #include "LinearCantilever3D.hxx"
 
 // libMesh namespace
@@ -26,8 +26,8 @@ int main (int argc, char ** argv)
 #endif
 
   // Create a 3D mesh distributed across the default MPI communicator.
-  Mesh mesh(init.comm(), dim);
-  MeshTools::Generation::build_cube (mesh,
+  Mesh input_mesh(init.comm(), dim);
+  MeshTools::Generation::build_cube (input_mesh,
                                      24,
                                      24,
                                      3,
@@ -37,17 +37,18 @@ int main (int argc, char ** argv)
                                      TET4);
 
   // Print information about the mesh to the screen.
-  mesh.print_info();
+  input_mesh.print_info();
+  input_mesh.write("antes.e");
 
   // Let's add some node and edge boundary conditions
   // Each processor should know about each boundary condition it can
   // see, so we loop over all elements, not just local elements.
-  for (const auto & elem : mesh.element_ptr_range())
+  for (const auto & elem : input_mesh.element_ptr_range())
     {
 
       for (auto s : elem->side_index_range())
         {
-          if (mesh.get_boundary_info().has_boundary_id(elem, s, BOUNDARY_ID_MAX_Z))
+          if (input_mesh.get_boundary_info().has_boundary_id(elem, s, BOUNDARY_ID_MAX_Z))
             {
               // Identificar se há pontos de impacto na face
               int contact_points = 0;
@@ -65,12 +66,21 @@ int main (int argc, char ** argv)
               }
               if ( contact_points == side->n_nodes() ){
                 // Incluir face como parte da área de impacto
-                mesh.get_boundary_info().add_side(elem, s, PUSH_BOUNDARY_ID);
+                input_mesh.get_boundary_info().add_side(elem, s, PUSH_BOUNDARY_ID);
               }
             }
         }
 
     }
+
+  // Malha de destino
+  Mesh mesh(init.comm());
+
+  // Processar a nova malha
+  mesh3D::Triangulation trng(&input_mesh, &mesh);
+  trng.remesh();
+
+  mesh.write("depois.e");
 
   // Create an equation systems object.
   EquationSystems equation_systems (mesh);

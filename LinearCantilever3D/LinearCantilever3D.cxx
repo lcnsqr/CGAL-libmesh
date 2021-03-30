@@ -121,10 +121,10 @@ void LinearElasticity::assemble()
                         JxW[qp] * elasticity_tensor(i,j,k,l) * dphi[dof_j][qp](l) * dphi[dof_i][qp](j);
 
           // assemble \int_Omega f_i v_i \dx
-          VectorValue<Number> f_vec(0., -1., 0.);
-          //for (unsigned int dof_i=0; dof_i<n_var_dofs; dof_i++)
-          //  for (unsigned int i=0; i<3; i++)
-          //    Fe_var[i](dof_i) += JxW[qp] * (f_vec(i) * phi[dof_i][qp]);
+          VectorValue<Number> f_vec(0., 0., -1.);
+          for (unsigned int dof_i=0; dof_i<n_var_dofs; dof_i++)
+            for (unsigned int i=0; i<3; i++)
+              Fe_var[i](dof_i) += JxW[qp] * (f_vec(i) * phi[dof_i][qp]);
         }
 
       // assemble \int_\Gamma g_i v_i \ds
@@ -140,7 +140,7 @@ void LinearElasticity::assemble()
 
               // Apply a traction
               for (unsigned int qp=0; qp<qface.n_points(); qp++)
-                if (mesh.get_boundary_info().has_boundary_id(elem, side, PUSH_BOUNDARY_ID))
+                if (mesh.get_boundary_info().has_boundary_id(elem, side, PUSH_BOUNDARY_ID)) // Não identifica
                   for (unsigned int dof_i=0; dof_i<n_var_dofs; dof_i++)
                     for (unsigned int i=0; i<3; i++)
                       Fe_var[i](dof_i) += JxW_face[qp] * (g_vec(i) * phi_face[dof_i][qp]);
