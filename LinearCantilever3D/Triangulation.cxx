@@ -24,15 +24,15 @@ void mesh3D::Triangulation::remesh(){
   nodes_boundaries_type nodes_boundaries;
   nodes_boundaries = in_boundary_info.build_node_list();
 
-  // Mapa com cada nó e seus contornos correspondentes
-  std::map<dof_id_type, std::vector<boundary_id_type>> hull_node_boundaries;
+  // Mapa com cada nó original e seus contornos correspondentes
+  std::map<dof_id_type, std::vector<boundary_id_type>> input_node_boundaries;
 
   // Preencher o mapa 
   for (nodes_boundaries_type::iterator nb_it = nodes_boundaries.begin(); 
     nb_it != nodes_boundaries.end();
     ++nb_it)
     {
-       hull_node_boundaries[std::get<0>(*nb_it)].push_back(std::get<1>(*nb_it));
+       input_node_boundaries[std::get<0>(*nb_it)].push_back(std::get<1>(*nb_it));
     }
 
   // [CGAL] Instanciar uma triangulação Delaunay 3D vazia
@@ -41,14 +41,14 @@ void mesh3D::Triangulation::remesh(){
   // [CGAL] Nós inseridos na malha CGAL
   std::map<dof_id_type, bool> cgal_added_nodes;
 
-  // Inserir nós de contorno na malha CGAL
+  // Inserir nós originais na malha CGAL
   for (auto & elem : _in_mesh->element_ptr_range())
     for (auto s : elem->side_index_range())
       if (elem->neighbor_ptr(s) == nullptr)
       {
         // Em cada face de elemento de contorno, gerar um mapa 
         // de contornos e seus nós correspondentes
-        std::map<boundary_id_type, std::vector<dof_id_type>> hull_boundary_nodes;
+        std::map<boundary_id_type, std::vector<dof_id_type>> input_boundary_nodes;
 
         // Face do elemento
         std::unique_ptr<Elem> side = elem->side_ptr(s);
@@ -57,19 +57,19 @@ void mesh3D::Triangulation::remesh(){
         for (auto n : side->node_index_range())
         {
           // Identificar boundary IDs associados ao nó
-          for (std::vector<boundary_id_type>::iterator bid_it = hull_node_boundaries[side->node_id(n)].begin();
-               bid_it != hull_node_boundaries[side->node_id(n)].end();
+          for (std::vector<boundary_id_type>::iterator bid_it = input_node_boundaries[side->node_id(n)].begin();
+               bid_it != input_node_boundaries[side->node_id(n)].end();
                ++bid_it)
           {
             // Incluir nó no vetor correspondente a cada um de seus boundary ID
-            hull_boundary_nodes[*bid_it].push_back(side->node_id(n));
+            input_boundary_nodes[*bid_it].push_back(side->node_id(n));
             // Se algum boundary ID totalizar o número de
             // nós total da face, a face está no contorno
-            if ( hull_boundary_nodes[*bid_it].size() == side->n_nodes() )
+            if ( input_boundary_nodes[*bid_it].size() == side->n_nodes() )
             {
               // Todos os nós deste lado estão no contorno *bid_it
-              for (std::vector<dof_id_type>::iterator node_it = hull_boundary_nodes[*bid_it].begin();
-                   node_it != hull_boundary_nodes[*bid_it].end();
+              for (std::vector<dof_id_type>::iterator node_it = input_boundary_nodes[*bid_it].begin();
+                   node_it != input_boundary_nodes[*bid_it].end();
                    ++node_it)
               {
 
@@ -84,7 +84,9 @@ void mesh3D::Triangulation::remesh(){
                 {
                   Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(p(0),p(1),p(2)));
                   // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
-                  vh->info() = *node_it + 1;
+                  vh->info().id = *node_it + 1;
+                  // Nó da malha original
+                  vh->info().source = mesh3D::ORIGINAL;
                   // Marcar nó como incluído
                   cgal_added_nodes[*node_it] = true;
                 }
@@ -113,7 +115,9 @@ void mesh3D::Triangulation::remesh(){
           {
             Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(p(0),p(1),p(2)));
             // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
-            vh->info() = side->node_id(n) + 1;
+            vh->info().id = side->node_id(n) + 1;
+            // Nó da malha original
+            vh->info().source = mesh3D::ORIGINAL;
             // Marcar nó como incluído
             cgal_added_nodes[side->node_id(n)] = true;
           }
@@ -121,14 +125,40 @@ void mesh3D::Triangulation::remesh(){
       }
 
 
-  // Incluir pontos internos aleatórios
-  /*
+  // Mapa com cada nó adicional e seus contornos correspondentes
+  std::map<unsigned long int, std::vector<boundary_id_type>> added_node_boundaries;
+
+  // Adicionar nós na zona de interesse
   unsigned int seed;
   getrandom((void *)&seed, sizeof(unsigned int), 0);
   srand(seed);
-  for (int i = 0 ; i < 3000; i++)
-    T.insert(Delaunay::Point(-1. + 2.*RAND,-1. + 2.*RAND,-1. + 2.*RAND));
-  */
+
+  // Pontos em MIN_Z
+  for (unsigned long int added_node_id = 0 ; added_node_id < 50; added_node_id++)
+  {
+    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(-.1 + .2*RAND, -.1 + .2*RAND, -.05));
+    // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
+    vh->info().id = added_node_id + 1;
+    // Nó adicional
+    vh->info().source = mesh3D::ADDED;
+    // Associar ao contorno correspondente
+    added_node_boundaries[added_node_id].push_back(BOUNDARY_ID_MIN_Z);
+  }
+
+  // Pontos em MAX_Z
+  for (unsigned long int added_node_id = 0 ; added_node_id < 50; added_node_id++)
+  {
+    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(-.1 + .2*RAND, -.1 + .2*RAND, .05));
+    // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
+    vh->info().id = added_node_id + 1;
+    // Nó adicional
+    vh->info().source = mesh3D::ADDED;
+    // Associar ao contorno correspondente
+    added_node_boundaries[added_node_id].push_back(BOUNDARY_ID_MAX_Z);
+    // Se próximo à área de impacto, associar ao contorno apropriado
+    if ( sqrt(pow(vh->point().x(), 2.)+pow(vh->point().y(), 2.)) < .1 )
+      added_node_boundaries[added_node_id].push_back(PUSH_BOUNDARY_ID);
+  }
 
   assert(T.is_valid());
 
@@ -180,10 +210,19 @@ void mesh3D::Triangulation::remesh(){
         cgal_vertex_to_new_node[cit->vertex(n)] = new_node_id;
 
         // Se vertex refere-se a um nó de contorno, recuperar seus boundary IDs
-        if ( cit->vertex(n)->info() > 0 )
+        if ( cit->vertex(n)->info().id > 0 )
         {
           // Associar novo node -> boundary ids
-          node_boundaries[new_node_id] = hull_node_boundaries[cit->vertex(n)->info() - 1];
+          if ( cit->vertex(n)->info().source == mesh3D::ORIGINAL )
+          {
+            // Usar mapeamento dos nós originais
+            node_boundaries[new_node_id] = input_node_boundaries[cit->vertex(n)->info().id - 1];
+          }
+          else // mesh3D::ADDED
+          {
+            // Usar mapeamento dos nós adicionais
+            node_boundaries[new_node_id] = added_node_boundaries[cit->vertex(n)->info().id - 1];
+          }
         }
 
       }
