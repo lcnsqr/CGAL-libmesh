@@ -32,9 +32,9 @@ int main (int argc, char ** argv)
                                      24,
                                      24,
                                      3,
-                                     -.5, .5,
-                                     -.5, .5,
-                                     -.05, .05,
+                                     -1., 1.,
+                                     -1., 1.,
+                                     -.1, .1,
                                      TET4);
 
   // Print information about the mesh to the screen.
@@ -60,7 +60,7 @@ int main (int argc, char ** argv)
               {
                 // Ponto (coordenadas) referente ao nó
                 Point p = side->node_ref(n);
-                if ( sqrt(pow(p(0), 2.)+pow(p(1), 2.)) < .1 )
+                if ( sqrt(pow(p(0), 2.)+pow(p(1), 2.)) < .2 )
                 {
                   contact_points++;
                 }

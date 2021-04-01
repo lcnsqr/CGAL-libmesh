@@ -1,5 +1,6 @@
 #include "Boundaries.hxx"
 #include "Triangulation.hxx"
+#include "box-muller.hxx"
 
 // libMesh namespace
 using namespace libMesh;
@@ -96,6 +97,7 @@ void mesh3D::Triangulation::remesh(){
           }
         }
       }
+/*
       else
       {
         // Face não está no contorno
@@ -123,6 +125,7 @@ void mesh3D::Triangulation::remesh(){
           }
         }
       }
+*/
 
 
   // Mapa com cada nó adicional e seus contornos correspondentes
@@ -133,32 +136,89 @@ void mesh3D::Triangulation::remesh(){
   getrandom((void *)&seed, sizeof(unsigned int), 0);
   srand(seed);
 
+  // Vetor de armazenamento dos pontos
+  unsigned long int new_nodes_n = 1000;
+  double *new_nodes = (double *)malloc(3*new_nodes_n*sizeof(double));
+
+  // Raio para posicionar o novo nó
+  double new_node_r;
+
+	// Escalar de acumulação no centro
+  double new_node_c = 1.;
+
+	unsigned long int added_node_id = 0;
+
+/*
+  // Gerar pontos em MIN_Z
+  boxMuller::normal(new_nodes, 0., 1., 3*new_nodes_n);
+
   // Pontos em MIN_Z
-  for (unsigned long int added_node_id = 0 ; added_node_id < 50; added_node_id++)
+  for (unsigned long int ni = 0; ni < new_nodes_n*3; ni += 3)
   {
-    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(-.1 + .2*RAND, -.1 + .2*RAND, -.05));
-    // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
-    vh->info().id = added_node_id + 1;
-    // Nó adicional
-    vh->info().source = mesh3D::ADDED;
+		// Tamanho do novo raio normalizado pelo 
+		// tamanho arbitrário do raio obtido
+		new_node_r = exp(new_node_c * .5*log(1-RAND)) / sqrt(pow(new_nodes[ni], 2.) + pow(new_nodes[ni+1], 2.) + pow(new_nodes[ni+2], 2.));
+
+    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(new_nodes[ni]*new_node_r, new_nodes[ni+1]*new_node_r, -.1));
+
     // Associar ao contorno correspondente
     added_node_boundaries[added_node_id].push_back(BOUNDARY_ID_MIN_Z);
-  }
 
-  // Pontos em MAX_Z
-  for (unsigned long int added_node_id = 0 ; added_node_id < 50; added_node_id++)
-  {
-    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(-.1 + .2*RAND, -.1 + .2*RAND, .05));
     // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
-    vh->info().id = added_node_id + 1;
+    vh->info().id = ++added_node_id;
+
     // Nó adicional
     vh->info().source = mesh3D::ADDED;
+  }
+
+  // Gerar pontos em MAX_Z
+  boxMuller::normal(new_nodes, 0., 1., 3*new_nodes_n);
+
+  // Pontos em MAX_Z
+  for (unsigned long int ni = 0; ni < new_nodes_n*3; ni += 3)
+  {
+		// Tamanho do novo raio normalizado pelo 
+		// tamanho arbitrário do raio obtido
+		new_node_r = exp(new_node_c * .5*log(1-RAND)) / sqrt(pow(new_nodes[ni], 2.) + pow(new_nodes[ni+1], 2.) + pow(new_nodes[ni+2], 2.));
+
+    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(new_nodes[ni]*new_node_r, new_nodes[ni+1]*new_node_r, .1));
+
     // Associar ao contorno correspondente
     added_node_boundaries[added_node_id].push_back(BOUNDARY_ID_MAX_Z);
+
     // Se próximo à área de impacto, associar ao contorno apropriado
-    if ( sqrt(pow(vh->point().x(), 2.)+pow(vh->point().y(), 2.)) < .1 )
+    if ( sqrt(pow(vh->point().x(), 2.)+pow(vh->point().y(), 2.)) < .2 )
+		{
       added_node_boundaries[added_node_id].push_back(PUSH_BOUNDARY_ID);
+		}
+
+    // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
+    vh->info().id = ++added_node_id;
+
+    // Nó adicional
+    vh->info().source = mesh3D::ADDED;
   }
+*/
+
+  // Gerar pontos internos
+  boxMuller::normal(new_nodes, 0., 1., 3*new_nodes_n);
+
+  for (unsigned long int ni = 0; ni < new_nodes_n*3; ni += 3)
+  {
+		// Tamanho do novo raio normalizado pelo 
+		// tamanho arbitrário do raio obtido
+		new_node_r = exp(new_node_c * .5*log(1-RAND)) / sqrt(pow(new_nodes[ni], 2.) + pow(new_nodes[ni+1], 2.) + pow(new_nodes[ni+2], 2.));
+
+    Delaunay::Vertex_handle vh = T.insert(Delaunay::Point(new_nodes[ni]*new_node_r, new_nodes[ni+1]*new_node_r, (1e-6 - .1) + (.2 - 2e-6) * RAND));
+
+    // Id do nó na malha libmesh original + 1 (evita usar 0 para identificação)
+    vh->info().id = ++added_node_id;
+
+    // Nó adicional
+    vh->info().source = mesh3D::ADDED;
+  }
+
+	free(new_nodes);
 
   assert(T.is_valid());
 
