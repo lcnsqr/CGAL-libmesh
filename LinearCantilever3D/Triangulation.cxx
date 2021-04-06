@@ -283,6 +283,8 @@ void mesh3D::Triangulation::remesh(){
         }
       }
 
+  // Antes, transformar malha para 2a. ordem.
+  
   _out_mesh->prepare_for_use();
 
 #ifdef DEBUG
