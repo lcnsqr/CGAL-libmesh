@@ -29,10 +29,10 @@ int main (int argc, char ** argv)
   // Create a 3D mesh distributed across the default MPI communicator.
   Mesh input_mesh(init.comm(), dim);
   MeshTools::Generation::build_cube (input_mesh,
-                                     24,
-                                     24,
-                                     3,
-                                     -.5, .5,
+                                     6,
+                                     42,
+                                     6,
+                                     -.05, .05,
                                      -.5, .5,
                                      -.05, .05,
                                      TET4);
@@ -47,25 +47,33 @@ int main (int argc, char ** argv)
   for (const auto & elem : input_mesh.element_ptr_range())
     {
 
+      // Percorre cada lado do elemento
       for (auto s : elem->side_index_range())
         {
-          if (input_mesh.get_boundary_info().has_boundary_id(elem, s, BOUNDARY_ID_MAX_Z))
+          // Verifica se face está associado a BOUNDARY_ID_MAX_Y
+          if (input_mesh.get_boundary_info().has_boundary_id(elem, s, BOUNDARY_ID_MAX_Y))
             {
               // Identificar se há pontos de impacto na face
               int contact_points = 0;
+
               // Ponteiro para a face do elemento
               std::unique_ptr<Elem> side = elem->side_ptr(s);
+
+              /*
               // Percorrer cada nó na face
               for (auto n : side->node_index_range())
               {
+
                 // Ponto (coordenadas) referente ao nó
                 Point p = side->node_ref(n);
                 if ( sqrt(pow(p(0), 2.)+pow(p(1), 2.)) < .1 )
                 {
                   contact_points++;
                 }
+
               }
               if ( contact_points == side->n_nodes() ){
+              */
                 // Incluir face como parte da área de impacto
                 input_mesh.get_boundary_info().add_side(elem, s, PUSH_BOUNDARY_ID);
 
@@ -76,7 +84,9 @@ int main (int argc, char ** argv)
                   input_mesh.get_boundary_info().add_node(node, PUSH_BOUNDARY_ID);
                 }
 
+              /*
               }
+              */
             }
         }
 
@@ -119,8 +129,8 @@ int main (int argc, char ** argv)
   unsigned int w_var = system.add_variable("w", FIRST, LAGRANGE);
 
   std::set<boundary_id_type> boundary_ids;
-  boundary_ids.insert(BOUNDARY_ID_MIN_X);
-  boundary_ids.insert(BOUNDARY_ID_MAX_X);
+  boundary_ids.insert(BOUNDARY_ID_MIN_Y);
+  //boundary_ids.insert(BOUNDARY_ID_MAX_X);
   //boundary_ids.insert(NODE_BOUNDARY_ID);
   //boundary_ids.insert(EDGE_BOUNDARY_ID);
 

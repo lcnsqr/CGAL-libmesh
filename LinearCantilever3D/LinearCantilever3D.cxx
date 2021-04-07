@@ -189,7 +189,7 @@ void LinearElasticity::assemble()
                         JxW[qp] * elasticity_tensor(i,j,k,l) * dphi[dof_j][qp](l) * dphi[dof_i][qp](j);
 
           // assemble \int_Omega f_i v_i \dx
-          VectorValue<Number> f_vec(0., 0., 0.);
+          VectorValue<Number> f_vec(0., -5., 0.);
           for (unsigned int dof_i=0; dof_i<n_var_dofs; dof_i++)
             for (unsigned int i=0; i<3; i++)
               Fe_var[i](dof_i) += JxW[qp] * (f_vec(i) * phi[dof_i][qp]);
@@ -200,7 +200,7 @@ void LinearElasticity::assemble()
       // "forcing function" in the PDE against the test functions.
       
       // assemble \int_\Gamma g_i v_i \ds
-      VectorValue<Number> g_vec(0., 1., -1.);
+      VectorValue<Number> g_vec(0., 0., 0.);
       {
         for (auto side : elem->side_index_range())
           if (elem->neighbor_ptr(side) == nullptr)
