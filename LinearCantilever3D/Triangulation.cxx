@@ -133,6 +133,7 @@ void mesh3D::Triangulation::remesh(){
   getrandom((void *)&seed, sizeof(unsigned int), 0);
   srand(seed);
 
+  /*
   // Pontos em MIN_Z
   for (unsigned long int added_node_id = 0 ; added_node_id < 50; added_node_id++)
   {
@@ -159,6 +160,7 @@ void mesh3D::Triangulation::remesh(){
     if ( sqrt(pow(vh->point().x(), 2.)+pow(vh->point().y(), 2.)) < .1 )
       added_node_boundaries[added_node_id].push_back(PUSH_BOUNDARY_ID);
   }
+  */
 
   assert(T.is_valid());
 
@@ -166,6 +168,9 @@ void mesh3D::Triangulation::remesh(){
   _out_mesh->clear();
   // Preservar dimensão da malha
 	_out_mesh->set_mesh_dimension(_in_mesh->mesh_dimension());
+
+  _out_mesh->reserve_nodes(T.number_of_vertices());
+  _out_mesh->reserve_elem(T.number_of_finite_cells());
 
   // Nós inseridos na nova malha libmesh
   std::map<Delaunay::Vertex_handle, bool> mesh_added_nodes;

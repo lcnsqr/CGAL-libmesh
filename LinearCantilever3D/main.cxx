@@ -90,6 +90,7 @@ int main (int argc, char ** argv)
   trng.remesh();
 
   mesh.write("depois.e");
+  mesh.print_info();
 
   // Create an equation systems object.
   EquationSystems equation_systems (mesh);
